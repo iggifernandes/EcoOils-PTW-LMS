@@ -12,14 +12,41 @@
 <script>
 'use strict';
 const API_URL='PASTE_APPS_SCRIPT_WEB_APP_URL_HERE';
+/* PREVIEW MODE (open index.html?preview=1): read-only walkthrough of every screen with sample content.
+   No login, no network calls, nothing saved. Never contains real learner data or approved course content. */
+const PREVIEW=new URLSearchParams(location.search).has('preview');
+function previewApi(action,data){
+  const t=(en,id,ms)=>({en,id:id||en,ms:ms||en});
+  const sample='<p><strong>SAMPLE TEXT – replace with approved course content.</strong></p><p>This placeholder shows how a module looks, including headings, lists and the voice-over button.</p><ul><li>First sample point</li><li>Second sample point</li></ul>';
+  const R={
+    me:{user:{fullName:'Preview Learner',role:'ADMIN'}},
+    dashboard:{progress:40,sessions:[{sessionId:'PREVIEW-001',courseTitle:'PTW Learning & Competency (sample)',date:'2026-11-01',status:'SAMPLE'}]},
+    joinSession:{session:{sessionId:'PREVIEW-001'}},
+    getCourse:{course:{title:'PTW Learning & Competency (sample)',description:'Sample course used only to preview the screens.',modules:[
+      {id:'M1',title:t('Module 1 – Sample','Modul 1 – Contoh','Modul 1 – Contoh'),html:t(sample)},
+      {id:'M2',title:t('Module 2 – Sample','Modul 2 – Contoh','Modul 2 – Contoh'),html:t(sample)}]}},
+    completeModule:{},
+    startAssessment:{assessmentId:'PREVIEW',passMark:80,questions:[
+      {id:'Q1',text:'Sample question 1 (placeholder)',options:[{key:'A',text:'Sample answer A'},{key:'B',text:'Sample answer B'},{key:'C',text:'Sample answer C'}]},
+      {id:'Q2',text:'Sample question 2 (placeholder)',options:[{key:'A',text:'Sample answer A'},{key:'B',text:'Sample answer B'}]}]},
+    submitAssessment:{score:100,passed:true,message:'Preview only – this result is not real and nothing was saved.'},
+    getPractical:{practical:{scenario:'Sample scenario: replace a damaged non-process water-line support using hand tools in an operating utility area.',workDescription:''}},
+    savePractical:{message:'Preview only – nothing was saved.'},
+    adminSummary:{users:0,sessions:0,completed:0},
+    adminCreateUser:{},
+    logout:{}
+  };
+  if(!(action in R)) throw Error('Not available in preview');
+  return Promise.resolve(Object.assign({ok:true},R[action]));
+}
 const S={token:sessionStorage.getItem('ptw_token')||'',user:null,lang:localStorage.getItem('ptw_lang')||'en',course:null,session:null,answers:{}};
 const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 function toast(m){let e=$('#toast');e.textContent=m;e.classList.remove('hidden');setTimeout(()=>e.classList.add('hidden'),3000)}
-async function api(action,data={}){if(API_URL.startsWith('PASTE_')) throw Error('Set API_URL in index.html after deploying Code.gs.');let r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action,token:S.token,...data})});let j=await r.json();if(!j.ok)throw Error(j.message||j.error||'Request failed');return j}
+async function api(action,data={}){if(PREVIEW)return previewApi(action,data);if(API_URL.startsWith('PASTE_')) throw Error('Set API_URL in index.html after deploying Code.gs.');let r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action,token:S.token,...data})});let j=await r.json();if(!j.ok)throw Error(j.message||j.error||'Request failed');return j}
 function setLang(l){S.lang=l;localStorage.setItem('ptw_lang',l);router()}
 function shell(body,tab=''){let tabs=S.user?`<nav>${['dashboard','learn','assessment','practical'].map(x=>`<button class="${tab===x?'active':''}" onclick="go('${x}')">${x[0].toUpperCase()+x.slice(1)}</button>`).join('')}${S.user.role==='ADMIN'?'<button onclick="go(\'admin\')">Admin</button>':''}</nav>`:'';$('#app').innerHTML=tabs+body;$('#logoutBtn').classList.toggle('hidden',!S.user);$('#who').textContent=S.user?`${S.user.fullName} · ${S.user.role}`:''}
 function go(p){location.hash=p;router()}
-async function init(){if(S.token){try{let j=await api('me');S.user=j.user}catch(e){sessionStorage.removeItem('ptw_token');S.token=''}}router()}
+async function init(){if(PREVIEW){S.user=(await api('me')).user;let b=document.createElement('div');b.style.cssText='background:#ffcc00;color:#17241d;text-align:center;padding:6px;font-weight:700';b.textContent='PREVIEW – sample content only, nothing is saved';document.body.prepend(b);return router()}if(S.token){try{let j=await api('me');S.user=j.user}catch(e){sessionStorage.removeItem('ptw_token');S.token=''}}router()}
 function router(){if(!S.user)return renderLogin();let p=location.hash.slice(1)||'dashboard';({dashboard,learn,assessment,practical,admin}[p]||dashboard)().catch(e=>shell(`<div class="card"><h2>Error</h2><p>${esc(e.message)}</p></div>`))}
 function renderLogin(){shell(`<section class="card login"><h1>Secure access</h1><p>Only pre-registered users may activate or sign in.</p><div class="grid"><div class="c12"><label>Username</label><input id="u" autocomplete="username"></div><div class="c12"><label>PIN / password</label><input id="p" type="password" autocomplete="current-password"></div><div class="c12 row"><button class="btn" onclick="login()">Sign in</button><button class="btn alt" onclick="activationForm()">Activate account</button><button class="btn alt" onclick="resetForm()">Forgot PIN</button></div></div><p class="help">Access is limited to registered users and assigned invigilated sessions.</p></section>`)}
 async function login(){try{let j=await api('login',{username:$('#u').value,password:$('#p').value});S.token=j.token;S.user=j.user;sessionStorage.setItem('ptw_token',S.token);go('dashboard')}catch(e){toast(e.message)}}
@@ -27,7 +54,7 @@ function activationForm(){shell(`<section class="card login"><h1>Activate accoun
 function resetForm(){shell(`<section class="card login"><h1>Reset PIN</h1><label>Username</label><input id="u"><label>Registered email</label><input id="e" type="email"><div class="row" style="margin-top:14px"><button class="btn" onclick="sendOtp('RESET')">Send OTP</button><button class="btn alt" onclick="renderLogin()">Back</button></div><div id="otpbox"></div></section>`)}
 async function sendOtp(purpose){try{await api('requestOtp',{username:$('#u').value,email:$('#e').value,purpose});$('#otpbox').innerHTML=`<hr><label>One-time password</label><input id="otp" inputmode="numeric"><label>New PIN / password</label><input id="np" type="password"><p class="help">Use at least 10 characters, including letters and numbers.</p><button class="btn" onclick="completeOtp('${purpose}')">Confirm</button>`;toast('If the account is eligible, an OTP has been sent.')}catch(e){toast(e.message)}}
 async function completeOtp(purpose){try{await api('verifyOtpSetPassword',{username:$('#u').value,email:$('#e').value,otp:$('#otp').value,newPassword:$('#np').value,purpose});toast('Updated. Sign in now.');setTimeout(renderLogin,700)}catch(e){toast(e.message)}}
-async function logout(){try{await api('logout')}catch(e){}S.token='';S.user=null;sessionStorage.removeItem('ptw_token');renderLogin()}
+async function logout(){if(PREVIEW){location.href=location.pathname;return}try{await api('logout')}catch(e){}S.token='';S.user=null;sessionStorage.removeItem('ptw_token');renderLogin()}
 async function dashboard(){let j=await api('dashboard');let sess=j.sessions||[];shell(`<div class="grid"><section class="card c8"><h1>Welcome, ${esc(S.user.fullName)}</h1><p>This programme builds PTW understanding, then verifies knowledge and practical ability under an invigilator.</p><div class="callout"><strong>Competency path:</strong> Learn → knowledge assessment → practical PTW → invigilator sign-off.</div></section><section class="card c4"><h3>Course progress</h3><div class="score">${j.progress||0}%</div><div class="progress"><i style="width:${j.progress||0}%"></i></div></section><section class="card c12"><h2>Assigned sessions</h2>${sess.length?`<table><tr><th>Session</th><th>Course</th><th>Date</th><th>Status</th><th></th></tr>${sess.map(x=>`<tr><td>${esc(x.sessionId)}</td><td>${esc(x.courseTitle)}</td><td>${esc(x.date)}</td><td><span class="pill">${esc(x.status)}</span></td><td><button class="btn" onclick="joinSession('${esc(x.sessionId)}')">Open</button></td></tr>`).join('')}</table>`:'<p>No assigned session.</p>'}</section></div>`,'dashboard')}
 async function joinSession(id){let code=prompt('Enter the code displayed by the invigilator');if(!code)return;try{let j=await api('joinSession',{sessionId:id,sessionCode:code});S.session=j.session;toast('Session opened');go('learn')}catch(e){toast(e.message)}}
 async function learn(){let j=await api('getCourse',{sessionId:S.session?.sessionId||''});S.course=j.course;let ms=j.course.modules||[];let nav=ms.map((m,i)=>`<button class="btn alt" onclick="showModule(${i})">${i+1}. ${esc(m.title[S.lang]||m.title.en)}</button>`).join('');shell(`<section class="card"><h1>${esc(j.course.title)}</h1><p>${esc(j.course.description)}</p><div class="row">${nav}</div></section><section id="lesson" class="card lesson"><p>Select a module.</p></section>`,'learn');if(ms.length)showModule(0)}
