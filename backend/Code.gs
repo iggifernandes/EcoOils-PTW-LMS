@@ -1,4 +1,4 @@
-const VERSION = '0.3'; // Code.gs version – bump on every change
+const VERSION = '0.4'; // Code.gs version – bump on every change
 /** PTW LMS backend for Google Apps Script.
  * Deploy as Web App: execute as owner. Access setting depends on your risk review.
  * Run setupLms() once, then update Script Properties and create the first admin.
@@ -64,3 +64,6 @@ function seedCourse_(){let s=sh_(CFG.COURSE);if(s.getLastRow()>1)return;const co
 {id:'Q13',text:{en:'Who must understand the permit controls?'},options:[{key:'A',text:{en:'Only the authorizer'}},{key:'B',text:{en:'Everyone involved in the work'}},{key:'C',text:{en:'Only HSSE'}},{key:'D',text:{en:'Only company employees'}}],correct:'B'},
 {id:'Q14',text:{en:'Can an old permit be copied without checking the field?'},options:[{key:'A',text:{en:'Yes'}},{key:'B',text:{en:'No, current scope and conditions must be assessed'}},{key:'C',text:{en:'Only on day shift'}},{key:'D',text:{en:'Only by an invigilator'}}],correct:'B'},
 {id:'Q15',text:{en:'What is the final competency decision based on?'},options:[{key:'A',text:{en:'Attendance only'}},{key:'B',text:{en:'Knowledge plus satisfactory practical demonstration and sign-off'}},{key:'C',text:{en:'Years of service only'}},{key:'D',text:{en:'Email activation'}}],correct:'B'}]};s.appendRow(['PTW-CORE-001','0.1',JSON.stringify(course)])}
+
+/** Run once from the editor: authorizes email sending and proves mail works. Check your inbox and Spam. */
+function testMail(){const to=Session.getEffectiveUser().getEmail();MailApp.sendEmail(to,'PTW LMS test','Mail works.');return 'Test email sent to '+to+'. Remaining daily quota: '+MailApp.getRemainingDailyQuota()}
