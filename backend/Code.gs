@@ -1,4 +1,4 @@
-const VERSION = '0.2'; // Code.gs version – bump on every change
+const VERSION = '0.3'; // Code.gs version – bump on every change
 /** PTW LMS backend for Google Apps Script.
  * Deploy as Web App: execute as owner. Access setting depends on your risk review.
  * Run setupLms() once, then update Script Properties and create the first admin.
@@ -10,7 +10,7 @@ const CFG={
   LOCK_MIN:15, OTP_MIN:10, SESSION_HOURS:8, PASS_MARK:80
 };
 function doGet(){return ContentService.createTextOutput(JSON.stringify({ok:true,service:'PTW LMS API'})).setMimeType(ContentService.MimeType.JSON)}
-function doPost(e){try{const x=JSON.parse(e.postData.contents||'{}');const publicActions=['login','requestOtp','verifyOtpSetPassword'];let user=null;if(!publicActions.includes(x.action))user=requireSession_(x.token);const map={login:login_,requestOtp:requestOtp_,verifyOtpSetPassword:verifyOtpSetPassword_,me:()=>({user:safeUser_(user)}),logout:()=>logout_(x.token),dashboard:()=>dashboard_(user),joinSession:()=>joinSession_(user,x),getCourse:()=>getCourse_(user,x),completeModule:()=>completeModule_(user,x),startAssessment:()=>startAssessment_(user,x),submitAssessment:()=>submitAssessment_(user,x),getPractical:()=>getPractical_(user,x),savePractical:()=>savePractical_(user,x),adminSummary:()=>adminSummary_(user),adminCreateUser:()=>adminCreateUser_(user,x)};if(!map[x.action])throw Error('Unknown action');return out_({ok:true,...map[x.action]()})}catch(err){return out_({ok:false,error:'REQUEST_FAILED',message:String(err.message||err)})}}
+function doPost(e){try{const x=JSON.parse(e.postData.contents||'{}');const publicActions=['login','requestOtp','verifyOtpSetPassword'];let user=null;if(!publicActions.includes(x.action))user=requireSession_(x.token);const map={login:()=>login_(x),requestOtp:()=>requestOtp_(x),verifyOtpSetPassword:()=>verifyOtpSetPassword_(x),me:()=>({user:safeUser_(user)}),logout:()=>logout_(x.token),dashboard:()=>dashboard_(user),joinSession:()=>joinSession_(user,x),getCourse:()=>getCourse_(user,x),completeModule:()=>completeModule_(user,x),startAssessment:()=>startAssessment_(user,x),submitAssessment:()=>submitAssessment_(user,x),getPractical:()=>getPractical_(user,x),savePractical:()=>savePractical_(user,x),adminSummary:()=>adminSummary_(user),adminCreateUser:()=>adminCreateUser_(user,x)};if(!map[x.action])throw Error('Unknown action');return out_({ok:true,...map[x.action]()})}catch(err){return out_({ok:false,error:'REQUEST_FAILED',message:String(err.message||err)})}}
 function out_(o){return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON)}
 function ss_(){const id=PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');if(!id)throw Error('SPREADSHEET_ID is not configured');return SpreadsheetApp.openById(id)}
 function sh_(n){let s=ss_().getSheetByName(n);if(!s)throw Error('Missing sheet '+n);return s}
